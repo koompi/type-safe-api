@@ -4,10 +4,14 @@
 export type Procedures = {
     queries: 
         { key: "name", input: never, result: string } | 
+        { key: "todos", input: never, result: Todo[] } | 
         { key: "users", input: User, result: User } | 
         { key: "version", input: never, result: string },
-    mutations: never,
+    mutations: 
+        { key: "create_todos", input: Todo, result: null },
     subscriptions: never
 };
+
+export type Todo = { title: string }
 
 export type User = { name: string; email: string }

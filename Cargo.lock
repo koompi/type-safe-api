@@ -1728,6 +1728,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "dotenv",
+ "futures",
  "mongodb",
  "rspc",
  "serde",

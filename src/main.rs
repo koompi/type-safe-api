@@ -1,15 +1,16 @@
 use crate::api::Ctx;
 use axum::{
-    http::{HeaderValue, Method},
+    http::{HeaderValue, Method,},
     routing::get,
 };
-use mongodb::Client;
+use mongodb::{Client, bson::DateTime};
 use rspc::{selection, Config};
 use rspc::{ErrorCode, MiddlewareContext, Type};
 use serde::{Deserialize, Serialize};
 use serde_json::to_string;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use tower_http::cors::CorsLayer;
+use futures::stream::StreamExt;
 
 mod api;
 mod utils;
@@ -20,8 +21,13 @@ pub struct User {
     pub email: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, Type)]
+pub struct Todo {
+    pub title: String,
+}
+
 async fn router() -> axum::Router {
-    let client = mongodb::Client::with_uri_str("mongodb://127.0.0.1:27017")
+    let client = mongodb::Client::with_uri_str("mongodb+srv://soklay:soklay123@soklay.fmepuar.mongodb.net/")
         .await
         .unwrap();
 
@@ -34,19 +40,7 @@ async fn router() -> axum::Router {
                 )
                 .set_ts_bindings_header("/* eslint-disable */"),
         )
-        .middleware(|mw| {
-            mw.middleware(|mw| async move {
-                let state = (mw.req.clone(), mw.ctx.clone(), mw.input.clone());
-                Ok(mw.with_state(state))
-            })
-            .resp(|state, result| async move {
-                println!(
-                    "[LOG] req='{:?}' ctx='{:?}'  input='{:?}' result='{:?}'",
-                    state.0, state.1, state.2, result
-                );
-                Ok(result)
-            })
-        })
+        
         .query("name", |t| t(|ctx, input: ()| "brilliant"))
         .query("users", |t| {
             t(|ctx, input: User| {
@@ -55,6 +49,22 @@ async fn router() -> axum::Router {
                 input
             })
         })
+        .query("todos", |t| {
+            t( |ctx, input: ()| async move {
+                let col = ctx.db.database("rspc").collection::<Todo>("todos");
+                let mut todos = col.find(None, None).await.unwrap();
+                let mut todo = Vec::new();
+                while let Some(data) = todos.next().await {
+                    todo.push(data.unwrap());
+                }
+                todo
+            })
+        })
+        .mutation("create_todos",  |t| t(|ctx, new_todo: Todo| async move {
+            let col = ctx.db.database("rspc").collection::<Todo>("todos");
+            col.insert_one(new_todo, None).await.unwrap();
+            
+        }))
         .build()
         .arced();
 
@@ -72,8 +82,11 @@ async fn router() -> axum::Router {
         )
         .layer(
             CorsLayer::new()
+                .allow_methods(tower_http::cors::Any)
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any)
                 .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
-                .allow_methods([Method::GET]),
+                .allow_methods([Method::GET, Method::POST]),
         )
 }
 

@@ -15,6 +15,7 @@ tower-http = {version = "0.4.0", features = ["cors"]}
 serde = {  version = "*", features= ["derive"]}
 serde_json = "*"
 mongodb = "2.5.0"
+futures = "0.3.5"
 
 [package.metadata.pkg-config]
 openssl = "0.0.3"
